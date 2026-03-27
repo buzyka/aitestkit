@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	aitestkit "github.com/buzyka/go-ai-testkit"
+	"github.com/buzyka/aitestkit/internal/connectorapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -98,11 +98,11 @@ func TestConnectorRunText(t *testing.T) {
 		Description string `json:"description"`
 	}
 
-	err = connector.Run(context.Background(), aitestkit.PromptRequest{
+	err = connector.Run(context.Background(), connectorapi.PromptRequest{
 		SystemPrompt: "You evaluate API responses.",
-		UserParts: []aitestkit.PromptPart{
-			{Type: aitestkit.PromptPartText, Text: "Request: {\"id\":1}"},
-			{Type: aitestkit.PromptPartText, Text: "Response: {\"ok\":true}"},
+		UserParts: []connectorapi.PromptPart{
+			{Type: connectorapi.PromptPartText, Text: "Request: {\"id\":1}"},
+			{Type: connectorapi.PromptPartText, Text: "Response: {\"ok\":true}"},
 		},
 		JSONSchema: json.RawMessage(`{"type":"object"}`),
 	}, &result)
@@ -142,12 +142,12 @@ func TestConnectorRunImage(t *testing.T) {
 
 			firstPart, ok := userContent[0].(map[string]any)
 			require.True(t, ok)
-			assert.Equal(t, string(aitestkit.PromptPartText), firstPart["type"])
+			assert.Equal(t, string(connectorapi.PromptPartText), firstPart["type"])
 			assert.Equal(t, "Analyze this image", firstPart["text"])
 
 			secondPart, ok := userContent[1].(map[string]any)
 			require.True(t, ok)
-			assert.Equal(t, string(aitestkit.PromptPartImageURL), secondPart["type"])
+			assert.Equal(t, string(connectorapi.PromptPartImageURL), secondPart["type"])
 			imageURL, ok := secondPart["image_url"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, "data:image/png;base64,AAA", imageURL["url"])
@@ -169,11 +169,11 @@ func TestConnectorRunImage(t *testing.T) {
 		Score int `json:"score"`
 	}
 
-	err = connector.Run(context.Background(), aitestkit.PromptRequest{
+	err = connector.Run(context.Background(), connectorapi.PromptRequest{
 		SystemPrompt: "You evaluate image responses.",
-		UserParts: []aitestkit.PromptPart{
-			{Type: aitestkit.PromptPartText, Text: "Analyze this image"},
-			{Type: aitestkit.PromptPartImageURL, ImageDataURL: "data:image/png;base64,AAA"},
+		UserParts: []connectorapi.PromptPart{
+			{Type: connectorapi.PromptPartText, Text: "Analyze this image"},
+			{Type: connectorapi.PromptPartImageURL, ImageDataURL: "data:image/png;base64,AAA"},
 		},
 		JSONSchema: json.RawMessage(`{"type":"object"}`),
 	}, &result)
@@ -186,9 +186,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		connector, err := NewConnector("secret")
 		require.NoError(t, err)
 
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, nil)
 		require.Error(t, err)
@@ -200,9 +200,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, result)
 		require.Error(t, err)
@@ -214,7 +214,7 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{}, &result)
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{}, &result)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "system prompt must not be empty")
 	})
@@ -224,9 +224,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 		}, &result)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "json schema must not be empty")
@@ -237,9 +237,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartImageURL}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartImageURL}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)
@@ -252,9 +252,9 @@ func TestConnectorRunErrors(t *testing.T) {
 
 		var result struct{}
 		var ctx context.Context
-		err = connector.Run(ctx, aitestkit.PromptRequest{
+		err = connector.Run(ctx, connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)
@@ -270,9 +270,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)
@@ -288,9 +288,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)
@@ -314,9 +314,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)
@@ -332,9 +332,9 @@ func TestConnectorRunErrors(t *testing.T) {
 		require.NoError(t, err)
 
 		var result struct{}
-		err = connector.Run(context.Background(), aitestkit.PromptRequest{
+		err = connector.Run(context.Background(), connectorapi.PromptRequest{
 			SystemPrompt: "prompt",
-			UserParts:    []aitestkit.PromptPart{{Type: aitestkit.PromptPartText, Text: "hello"}},
+			UserParts:    []connectorapi.PromptPart{{Type: connectorapi.PromptPartText, Text: "hello"}},
 			JSONSchema:   json.RawMessage(`{"type":"object"}`),
 		}, &result)
 		require.Error(t, err)

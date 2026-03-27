@@ -1,4 +1,4 @@
-module github.com/buzyka/go-ai-testkit
+module github.com/buzyka/aitestkit
 
 go 1.26.1
 

@@ -201,17 +201,17 @@ func TestCheckResponse(t *testing.T) {
 	}
 
 	t.Run("rejects nil connector", func(t *testing.T) {
-		err := CheckResponse(context.Background(), nil, validParams, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), nil, validParams, &CheckResult{})
 		require.EqualError(t, err, "connector is required")
 	})
 
 	t.Run("rejects nil output", func(t *testing.T) {
-		err := CheckResponse(context.Background(), &stubConnector{}, validParams, nil)
+		err := CheckResponse(context.Background(), validParams, nil)
 		require.EqualError(t, err, "check result output is required")
 	})
 
 	t.Run("rejects invalid params", func(t *testing.T) {
-		err := CheckResponse(context.Background(), &stubConnector{}, ResponseCheckParams{}, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), &stubConnector{}, ResponseCheckParams{}, &CheckResult{})
 		require.EqualError(t, err, "validate response check params: subject must not be empty")
 	})
 
@@ -219,7 +219,7 @@ func TestCheckResponse(t *testing.T) {
 		params := validParams
 		params.Request = make(chan int)
 
-		err := CheckResponse(context.Background(), &stubConnector{}, params, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), &stubConnector{}, params, &CheckResult{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "marshal request:")
 	})
@@ -228,7 +228,7 @@ func TestCheckResponse(t *testing.T) {
 		params := validParams
 		params.Response = make(chan int)
 
-		err := CheckResponse(context.Background(), &stubConnector{}, params, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), &stubConnector{}, params, &CheckResult{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "marshal response:")
 	})
@@ -236,7 +236,7 @@ func TestCheckResponse(t *testing.T) {
 	t.Run("wraps connector error", func(t *testing.T) {
 		connector := &stubConnector{err: errors.New("provider timeout")}
 
-		err := CheckResponse(context.Background(), connector, validParams, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), connector, validParams, &CheckResult{})
 		require.EqualError(t, err, "run connector: provider timeout")
 	})
 
@@ -245,7 +245,7 @@ func TestCheckResponse(t *testing.T) {
 			result: CheckResult{Score: 11, Description: "bad"},
 		}
 
-		err := CheckResponse(context.Background(), connector, validParams, &CheckResult{})
+		err := checkResponseWithConnector(context.Background(), connector, validParams, &CheckResult{})
 		require.EqualError(t, err, "validate check result: score must be between 1 and 10")
 	})
 
@@ -255,7 +255,7 @@ func TestCheckResponse(t *testing.T) {
 		}
 		out := &CheckResult{}
 
-		err := CheckResponse(context.Background(), connector, validParams, out)
+		err := checkResponseWithConnector(context.Background(), connector, validParams, out)
 		require.NoError(t, err)
 		assert.Equal(t, CheckResult{Score: 9, Description: "matches expectation"}, *out)
 		assert.Equal(t, 1, connector.runCalls)
@@ -279,7 +279,7 @@ func TestCheckImageResponse(t *testing.T) {
 	}
 
 	t.Run("rejects invalid params", func(t *testing.T) {
-		err := CheckImageResponse(context.Background(), &stubConnector{}, ImageResponseCheckParams{}, &CheckResult{})
+		err := checkImageResponseWithConnector(context.Background(), &stubConnector{}, ImageResponseCheckParams{}, &CheckResult{})
 		require.EqualError(t, err, "validate image response check params: subject must not be empty")
 	})
 
@@ -287,7 +287,7 @@ func TestCheckImageResponse(t *testing.T) {
 		params := validParams
 		params.Request = make(chan int)
 
-		err := CheckImageResponse(context.Background(), &stubConnector{}, params, &CheckResult{})
+		err := checkImageResponseWithConnector(context.Background(), &stubConnector{}, params, &CheckResult{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "marshal request:")
 	})
@@ -295,7 +295,7 @@ func TestCheckImageResponse(t *testing.T) {
 	t.Run("wraps connector error", func(t *testing.T) {
 		connector := &stubConnector{err: errors.New("boom")}
 
-		err := CheckImageResponse(context.Background(), connector, validParams, &CheckResult{})
+		err := checkImageResponseWithConnector(context.Background(), connector, validParams, &CheckResult{})
 		require.EqualError(t, err, "run connector: boom")
 	})
 
@@ -305,7 +305,7 @@ func TestCheckImageResponse(t *testing.T) {
 		}
 		out := &CheckResult{}
 
-		err := CheckImageResponse(context.Background(), connector, validParams, out)
+		err := checkImageResponseWithConnector(context.Background(), connector, validParams, out)
 		require.NoError(t, err)
 		assert.Equal(t, CheckResult{Score: 8, Description: "image matches request"}, *out)
 		assert.Len(t, connector.capturedRequest.UserParts, 2)
@@ -325,10 +325,11 @@ func TestAssertResponse(t *testing.T) {
 	}
 
 	t.Run("returns true on pass", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 8, Description: "good"},
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertResponse(recorder, context.Background(), params)
 
 		assert.True(t, ok)
 		assert.Empty(t, recorder.errors)
@@ -337,10 +338,11 @@ func TestAssertResponse(t *testing.T) {
 	})
 
 	t.Run("reports connector error", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			err: errors.New("boom"),
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertResponse(recorder, context.Background(), params)
 
 		assert.False(t, ok)
 		require.Len(t, recorder.errors, 1)
@@ -348,10 +350,11 @@ func TestAssertResponse(t *testing.T) {
 	})
 
 	t.Run("reports low score", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 6, Description: "too weak"},
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertResponse(recorder, context.Background(), params)
 
 		assert.False(t, ok)
 		require.Len(t, recorder.errors, 1)
@@ -359,10 +362,11 @@ func TestAssertResponse(t *testing.T) {
 	})
 
 	t.Run("uses custom message when provided", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 6, Description: "too weak"},
-		}, params, "semantic mismatch for %s", "orders")
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertResponse(recorder, context.Background(), params, "semantic mismatch for %s", "orders")
 
 		assert.False(t, ok)
 		require.Len(t, recorder.errors, 1)
@@ -380,10 +384,11 @@ func TestRequireResponse(t *testing.T) {
 	}
 
 	t.Run("does not fail on pass", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		RequireResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 9, Description: "good"},
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		RequireResponse(recorder, context.Background(), params)
 
 		assert.False(t, recorder.failNow)
 		assert.Empty(t, recorder.errors)
@@ -391,20 +396,22 @@ func TestRequireResponse(t *testing.T) {
 	})
 
 	t.Run("fails now on error", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		RequireResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			err: errors.New("boom"),
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		RequireResponse(recorder, context.Background(), params)
 
 		assert.True(t, recorder.failNow)
 		require.Len(t, recorder.errors, 1)
 	})
 
 	t.Run("uses custom message", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		RequireResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			err: errors.New("boom"),
-		}, params, "custom require message")
+		}, nil)
+		recorder := &recorderRequireT{}
+		RequireResponse(recorder, context.Background(), params, "custom require message")
 
 		assert.True(t, recorder.failNow)
 		require.Len(t, recorder.errors, 1)
@@ -422,20 +429,22 @@ func TestAssertImageResponse(t *testing.T) {
 	}
 
 	t.Run("returns true on pass", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertImageResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 8, Description: "good"},
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertImageResponse(recorder, context.Background(), params)
 
 		assert.True(t, ok)
 		assert.Empty(t, recorder.errors)
 	})
 
 	t.Run("reports low score", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertImageResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 5, Description: "wrong object"},
-		}, params)
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertImageResponse(recorder, context.Background(), params)
 
 		assert.False(t, ok)
 		require.Len(t, recorder.errors, 1)
@@ -443,10 +452,11 @@ func TestAssertImageResponse(t *testing.T) {
 	})
 
 	t.Run("uses custom message", func(t *testing.T) {
-		recorder := &recorderRequireT{}
-		ok := AssertImageResponse(recorder, context.Background(), &stubConnector{
+		cacheDefaultConnectorForTests(&stubConnector{
 			result: CheckResult{Score: 5, Description: "wrong object"},
-		}, params, "custom image message")
+		}, nil)
+		recorder := &recorderRequireT{}
+		ok := AssertImageResponse(recorder, context.Background(), params, "custom image message")
 
 		assert.False(t, ok)
 		require.Len(t, recorder.errors, 1)
@@ -464,9 +474,10 @@ func TestRequireImageResponse(t *testing.T) {
 	}
 
 	recorder := &recorderRequireT{}
-	RequireImageResponse(recorder, context.Background(), &stubConnector{
+	cacheDefaultConnectorForTests(&stubConnector{
 		err: errors.New("boom"),
-	}, params)
+	}, nil)
+	RequireImageResponse(recorder, context.Background(), params)
 
 	assert.True(t, recorder.failNow)
 	require.Len(t, recorder.errors, 1)
@@ -475,4 +486,12 @@ func TestRequireImageResponse(t *testing.T) {
 
 func sprintf(format string, args ...any) string {
 	return fmt.Sprintf(format, args...)
+}
+
+func cacheDefaultConnectorForTests(connector Connector, err error) {
+	resetDefaultConnectorStateForTests()
+	defaultConnectorOnce.Do(func() {
+		defaultConnectorValue = connector
+		defaultConnectorErr = err
+	})
 }

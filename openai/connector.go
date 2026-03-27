@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	aitestkit "github.com/buzyka/go-ai-testkit"
+	"github.com/buzyka/aitestkit/internal/connectorapi"
 )
 
 const (
@@ -41,7 +41,7 @@ type Connector struct {
 	cfg config
 }
 
-var _ aitestkit.Connector = (*Connector)(nil)
+var _ connectorapi.Connector = (*Connector)(nil)
 
 // NewConnector creates a Connector with the provided API key and options.
 func NewConnector(apiKey string, opts ...Option) (*Connector, error) {
@@ -142,7 +142,7 @@ func WithReasoningEffort(value string) Option {
 }
 
 // Run executes the structured request and decodes the model output into out.
-func (c *Connector) Run(ctx context.Context, req aitestkit.PromptRequest, out any) error {
+func (c *Connector) Run(ctx context.Context, req connectorapi.PromptRequest, out any) error {
 	if c == nil {
 		return errors.New("connector must not be nil")
 	}
@@ -218,7 +218,7 @@ func (c *Connector) chatCompletionsURL() string {
 	return strings.TrimRight(c.cfg.baseURL, "/") + "/v1/chat/completions"
 }
 
-func (c *Connector) buildRequestPayload(req aitestkit.PromptRequest) (chatCompletionRequest, error) {
+func (c *Connector) buildRequestPayload(req connectorapi.PromptRequest) (chatCompletionRequest, error) {
 	userContent, err := buildUserContent(req.UserParts)
 	if err != nil {
 		return chatCompletionRequest{}, err
@@ -253,12 +253,12 @@ func (c *Connector) buildRequestPayload(req aitestkit.PromptRequest) (chatComple
 	return payload, nil
 }
 
-func buildUserContent(parts []aitestkit.PromptPart) (any, error) {
+func buildUserContent(parts []connectorapi.PromptPart) (any, error) {
 	if len(parts) == 0 {
 		return nil, errors.New("user parts must not be empty")
 	}
 
-	if len(parts) == 1 && parts[0].Type == aitestkit.PromptPartText {
+	if len(parts) == 1 && parts[0].Type == connectorapi.PromptPartText {
 		trimmed := strings.TrimSpace(parts[0].Text)
 		if trimmed == "" {
 			return nil, errors.New("text part must not be empty")
@@ -272,23 +272,23 @@ func buildUserContent(parts []aitestkit.PromptPart) (any, error) {
 
 	for _, part := range parts {
 		switch part.Type {
-		case aitestkit.PromptPartText:
+		case connectorapi.PromptPartText:
 			trimmed := strings.TrimSpace(part.Text)
 			if trimmed == "" {
 				return nil, errors.New("text part must not be empty")
 			}
 			content = append(content, chatContentPart{
-				Type: aitestkit.PromptPartText,
+				Type: connectorapi.PromptPartText,
 				Text: trimmed,
 			})
-		case aitestkit.PromptPartImageURL:
+		case connectorapi.PromptPartImageURL:
 			trimmed := strings.TrimSpace(part.ImageDataURL)
 			if trimmed == "" {
 				return nil, errors.New("image data URL must not be empty")
 			}
 			hasImage = true
 			content = append(content, chatContentPart{
-				Type: aitestkit.PromptPartImageURL,
+				Type: connectorapi.PromptPartImageURL,
 				ImageURL: &imageURL{
 					URL: trimmed,
 				},
@@ -309,7 +309,7 @@ func buildUserContent(parts []aitestkit.PromptPart) (any, error) {
 	return content, nil
 }
 
-func validatePromptRequest(req aitestkit.PromptRequest) error {
+func validatePromptRequest(req connectorapi.PromptRequest) error {
 	return req.Validate()
 }
 
@@ -350,9 +350,9 @@ type jsonSchemaEnvelope struct {
 }
 
 type chatContentPart struct {
-	Type     aitestkit.PromptPartType `json:"type"`
-	Text     string                   `json:"text,omitempty"`
-	ImageURL *imageURL                `json:"image_url,omitempty"`
+	Type     connectorapi.PromptPartType `json:"type"`
+	Text     string                      `json:"text,omitempty"`
+	ImageURL *imageURL                   `json:"image_url,omitempty"`
 }
 
 type imageURL struct {

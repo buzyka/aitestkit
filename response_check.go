@@ -104,15 +104,20 @@ func (p ImageResponseCheckParams) Validate() error {
 }
 
 // CheckResponse executes a semantic check for arbitrary request/response values.
-func CheckResponse(ctx context.Context, c Connector, params ResponseCheckParams, out *CheckResult) error {
-	if isNilConnector(c) {
-		return errors.New("connector is required")
-	}
-
+func CheckResponse(ctx context.Context, params ResponseCheckParams, out *CheckResult) error {
 	if out == nil {
 		return errors.New("check result output is required")
 	}
 
+	connector, err := defaultConnector()
+	if err != nil {
+		return fmt.Errorf("load default connector: %w", err)
+	}
+
+	return executeResponseCheck(ctx, connector, params, out)
+}
+
+func executeResponseCheck(ctx context.Context, c Connector, params ResponseCheckParams, out *CheckResult) error {
 	if err := params.Validate(); err != nil {
 		return fmt.Errorf("validate response check params: %w", err)
 	}
@@ -147,15 +152,20 @@ func CheckResponse(ctx context.Context, c Connector, params ResponseCheckParams,
 }
 
 // CheckImageResponse executes a semantic check for an image response.
-func CheckImageResponse(ctx context.Context, c Connector, params ImageResponseCheckParams, out *CheckResult) error {
-	if isNilConnector(c) {
-		return errors.New("connector is required")
-	}
-
+func CheckImageResponse(ctx context.Context, params ImageResponseCheckParams, out *CheckResult) error {
 	if out == nil {
 		return errors.New("check result output is required")
 	}
 
+	connector, err := defaultConnector()
+	if err != nil {
+		return fmt.Errorf("load default connector: %w", err)
+	}
+
+	return executeImageResponseCheck(ctx, connector, params, out)
+}
+
+func executeImageResponseCheck(ctx context.Context, c Connector, params ImageResponseCheckParams, out *CheckResult) error {
 	if err := params.Validate(); err != nil {
 		return fmt.Errorf("validate image response check params: %w", err)
 	}

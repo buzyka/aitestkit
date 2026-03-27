@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`go-ai-testkit` is a Go package for validating non-deterministic logic with AI-backed evaluators.
+`aitestkit` is a Go package for validating non-deterministic logic with AI-backed evaluators.
 
 ## Current Public API
 
@@ -18,16 +18,17 @@ The package now also supports HTTP-agnostic semantic checks:
 
 - `Connector` is the provider boundary for AI calls.
 - `PromptRequest` carries system prompt, user parts, and the JSON schema expected from the model.
-- `CheckResponse(...)` and `CheckImageResponse(...)` build prompts, call a connector, and decode a structured `CheckResult`.
+- `CheckResponse(...)` and `CheckImageResponse(...)` load the configured connector, build prompts, and decode a structured `CheckResult`.
 - `AssertResponse(...)`, `RequireResponse(...)`, `AssertImageResponse(...)`, and `RequireImageResponse(...)` wrap the low-level checks in a `testify`-style API.
 
 The flow is intentionally generic:
 
-1. The caller passes arbitrary request/response values.
-2. The package marshals them to JSON.
-3. The package sends a prompt through a connector implementation.
-4. The AI returns a structured score and description.
-5. The caller decides whether the score is acceptable.
+1. The caller places `.aitestkit.json` next to `go.mod`.
+2. The caller passes arbitrary request/response values.
+3. The package loads and caches the configured connector.
+4. The package marshals the values to JSON and sends a prompt through that connector.
+5. The AI returns a structured score and description.
+6. The caller decides whether the score is acceptable.
 
 Because the API does not depend on HTTP types, it can be used for REST responses, service output, or any other structured payload.
 
@@ -38,7 +39,7 @@ The first provider implementation lives in the `openai` subpackage.
 - It implements `Connector`.
 - It uses OpenAI Chat Completions with structured JSON output.
 - It returns only `error` and writes the decoded result into the caller-provided target.
-- It is a reference implementation for other providers, not a special case in the core package.
+- It is the provider used by the file-based configuration flow in v1.
 
 ## Current Direction
 
