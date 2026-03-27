@@ -1,6 +1,6 @@
 # aitestkit
 
-`aitestkit` is an external Go package for validating non-deterministic logic with AI-backed evaluators.
+`aitestkit` is an external Go package for semantic AI-backed assertions over non-deterministic logic.
 
 The package is intentionally provider-agnostic. It exposes a small semantic checking API, assertion-style helpers for tests, and a connector boundary that can be implemented by OpenAI or any other AI backend.
 
@@ -11,6 +11,8 @@ The package is intentionally provider-agnostic. It exposes a small semantic chec
 - Provide HTTP-agnostic semantic checks for arbitrary request/response payloads.
 - Offer `testify`-style helpers for clean test assertions.
 - Keep the AI provider boundary small and replaceable.
+
+The package no longer ships the older checker/client abstraction. The semantic assertion flow described below is the primary API.
 
 ## Semantic Checks
 

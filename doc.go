@@ -1,3 +1,3 @@
-// Package aitestkit provides a small public API for validating
-// non-deterministic logic and REST responses with AI-backed evaluators.
+// Package aitestkit provides semantic AI-backed assertions for
+// non-deterministic outputs.
 package aitestkit
