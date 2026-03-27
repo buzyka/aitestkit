@@ -25,10 +25,11 @@ The flow is intentionally generic:
 
 1. The caller places `.aitestkit.json` next to `go.mod`.
 2. The caller passes arbitrary request/response values.
-3. The package loads and caches the configured connector.
-4. The package marshals the values to JSON and sends a prompt through that connector.
-5. The AI returns a structured score and description.
-6. The caller decides whether the score is acceptable.
+3. The package loads and caches the configured connector and timeout.
+4. The package creates `context.Background()` with that timeout automatically.
+5. The package marshals the values to JSON and sends a prompt through that connector.
+6. The AI returns a structured score and description.
+7. The caller decides whether the score is acceptable.
 
 Because the API does not depend on HTTP types, it can be used for REST responses, service output, or any other structured payload.
 

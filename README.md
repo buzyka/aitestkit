@@ -18,10 +18,11 @@ The package is designed around a simple flow:
 
 1. Load `.aitestkit.json` from the directory that contains `go.mod`.
 2. Initialize the configured AI connector once and cache it.
-3. Marshal the request and response values to JSON.
-4. Build a prompt with the subject, expectation, and the observed payloads.
-5. Decode a structured AI result into a `CheckResult` with `Score` and `Description`.
-6. Fail or continue in the test depending on the score threshold chosen by the caller.
+3. Create `context.Background()` with the configured timeout.
+4. Marshal the request and response values to JSON.
+5. Build a prompt with the subject, expectation, and the observed payloads.
+6. Decode a structured AI result into a `CheckResult` with `Score` and `Description`.
+7. Fail or continue in the test depending on the score threshold chosen by the caller.
 
 This makes the API independent from HTTP. For REST tests, the `Subject` can simply be the endpoint name or route path. For other use cases, it can be any domain label.
 
@@ -44,6 +45,7 @@ Create `.aitestkit.json` next to `go.mod`:
 ```json
 {
   "provider": "openai",
+  "timeout": "30s",
   "openai": {
     "api_key_env": "OPENAI_API_KEY",
     "model": "gpt-5-mini",
@@ -53,6 +55,7 @@ Create `.aitestkit.json` next to `go.mod`:
 ```
 
 The package looks up the nearest `go.mod`, reads `.aitestkit.json` from that directory, and initializes the connector once per process.
+It also creates a request context automatically with the configured timeout. If `timeout` is omitted, the default is `5m`.
 
 If you do not want to store the API key directly in the file, use `api_key_env`. That is the recommended setup.
 
@@ -78,14 +81,13 @@ go get github.com/buzyka/aitestkit
 package main_test
 
 import (
-	"context"
 	"testing"
 
 	aitestkit "github.com/buzyka/aitestkit"
 )
 
 func TestOrderResponse(t *testing.T) {
-	ok := aitestkit.AssertResponse(t, context.Background(), aitestkit.ResponseCheckParams{
+	ok := aitestkit.AssertResponse(t, aitestkit.ResponseCheckParams{
 		Subject:     "orders-api/create-order",
 		Expectation: "the response should confirm that the order was created successfully",
 		Request:     map[string]any{"sku": "A-123", "quantity": 1},

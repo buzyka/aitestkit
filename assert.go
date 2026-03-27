@@ -1,7 +1,6 @@
 package aitestkit
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -21,11 +20,11 @@ type RequireT interface {
 // AssertResponse performs a semantic response check and reports failures through t.
 //
 //nolint:revive // The testing object stays first to keep testify-like ergonomics.
-func AssertResponse(t AssertT, ctx context.Context, params ResponseCheckParams, msgAndArgs ...any) bool {
+func AssertResponse(t AssertT, params ResponseCheckParams, msgAndArgs ...any) bool {
 	t.Helper()
 
 	result := &CheckResult{}
-	if err := CheckResponse(ctx, params, result); err != nil {
+	if err := CheckResponse(params, result); err != nil {
 		t.Errorf("%s", failureMessage("%s semantic check error: %v", msgAndArgs, params.Subject, err))
 		return false
 	}
@@ -48,10 +47,10 @@ func AssertResponse(t AssertT, ctx context.Context, params ResponseCheckParams, 
 // RequireResponse performs a semantic response check and aborts the test on failure.
 //
 //nolint:revive // The testing object stays first to keep testify-like ergonomics.
-func RequireResponse(t RequireT, ctx context.Context, params ResponseCheckParams, msgAndArgs ...any) {
+func RequireResponse(t RequireT, params ResponseCheckParams, msgAndArgs ...any) {
 	t.Helper()
 
-	if !AssertResponse(t, ctx, params, msgAndArgs...) {
+	if !AssertResponse(t, params, msgAndArgs...) {
 		t.FailNow()
 	}
 }
@@ -59,11 +58,11 @@ func RequireResponse(t RequireT, ctx context.Context, params ResponseCheckParams
 // AssertImageResponse performs a semantic image response check and reports failures through t.
 //
 //nolint:revive // The testing object stays first to keep testify-like ergonomics.
-func AssertImageResponse(t AssertT, ctx context.Context, params ImageResponseCheckParams, msgAndArgs ...any) bool {
+func AssertImageResponse(t AssertT, params ImageResponseCheckParams, msgAndArgs ...any) bool {
 	t.Helper()
 
 	result := &CheckResult{}
-	if err := CheckImageResponse(ctx, params, result); err != nil {
+	if err := CheckImageResponse(params, result); err != nil {
 		t.Errorf("%s", failureMessage("%s semantic image check error: %v", msgAndArgs, params.Subject, err))
 		return false
 	}
@@ -86,10 +85,10 @@ func AssertImageResponse(t AssertT, ctx context.Context, params ImageResponseChe
 // RequireImageResponse performs a semantic image response check and aborts the test on failure.
 //
 //nolint:revive // The testing object stays first to keep testify-like ergonomics.
-func RequireImageResponse(t RequireT, ctx context.Context, params ImageResponseCheckParams, msgAndArgs ...any) {
+func RequireImageResponse(t RequireT, params ImageResponseCheckParams, msgAndArgs ...any) {
 	t.Helper()
 
-	if !AssertImageResponse(t, ctx, params, msgAndArgs...) {
+	if !AssertImageResponse(t, params, msgAndArgs...) {
 		t.FailNow()
 	}
 }

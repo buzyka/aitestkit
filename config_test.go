@@ -1,11 +1,11 @@
 package aitestkit
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +84,32 @@ func TestLoadConnectorFromWorkingDir(t *testing.T) {
 			BaseURL:         "https://api.openai.com",
 			ReasoningEffort: "minimal",
 		}, captured)
+	})
+
+	t.Run("builds runtime from inline api key", func(t *testing.T) {
+		withConfigTestState(t)
+
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/project\n")
+		writeFile(t, filepath.Join(dir, configFileName), `{
+			"provider": "openai",
+			"timeout": "45s",
+			"openai": {
+				"api_key": "sk-inline-key",
+				"model": "gpt-5-mini"
+			}
+		}`)
+
+		originalBuilder := buildOpenAIConnector
+		t.Cleanup(func() {
+			buildOpenAIConnector = originalBuilder
+		})
+		buildOpenAIConnector = originalBuilder
+
+		connector, timeout, err := loadRuntimeFromWorkingDir(dir)
+		require.NoError(t, err)
+		require.NotNil(t, connector)
+		assert.Equal(t, 45*time.Second, timeout)
 	})
 }
 
@@ -168,6 +194,31 @@ func TestDefaultConnectorCachesResult(t *testing.T) {
 	assert.Equal(t, 1, buildCalls)
 }
 
+func TestResolveTimeout(t *testing.T) {
+	t.Run("uses default timeout when empty", func(t *testing.T) {
+		timeout, err := resolveTimeout("")
+		require.NoError(t, err)
+		assert.Equal(t, defaultRequestTimeout, timeout)
+	})
+
+	t.Run("parses configured timeout", func(t *testing.T) {
+		timeout, err := resolveTimeout("30s")
+		require.NoError(t, err)
+		assert.Equal(t, 30*time.Second, timeout)
+	})
+
+	t.Run("rejects invalid timeout", func(t *testing.T) {
+		_, err := resolveTimeout("abc")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parse timeout:")
+	})
+
+	t.Run("rejects non positive timeout", func(t *testing.T) {
+		_, err := resolveTimeout("0s")
+		require.EqualError(t, err, "timeout must be greater than zero")
+	})
+}
+
 func TestCheckResponseUsesDefaultConnector(t *testing.T) {
 	withConfigTestState(t)
 
@@ -186,7 +237,7 @@ func TestCheckResponseUsesDefaultConnector(t *testing.T) {
 	}
 
 	out := &CheckResult{}
-	err := CheckResponse(context.Background(), ResponseCheckParams{
+	err := CheckResponse(ResponseCheckParams{
 		Subject:     "orders",
 		Expectation: "must confirm success",
 		Request:     map[string]string{"status": "pending"},
@@ -206,7 +257,7 @@ func TestAssertResponseReportsDefaultConnectorLoadError(t *testing.T) {
 	}
 
 	recorder := &recorderRequireT{}
-	ok := AssertResponse(recorder, context.Background(), ResponseCheckParams{
+	ok := AssertResponse(recorder, ResponseCheckParams{
 		Subject:     "orders",
 		Expectation: "must confirm success",
 		Request:     map[string]string{"status": "pending"},

@@ -9,23 +9,19 @@ import (
 )
 
 var checkResultSchema = json.RawMessage(`{
-	"name": "semantic_response_check",
-	"strict": true,
-	"schema": {
-		"type": "object",
-		"properties": {
-			"score": {
-				"type": "integer",
-				"description": "Score from 1 to 10"
-			},
-			"description": {
-				"type": "string",
-				"description": "Short explanation of the score"
-			}
+	"type": "object",
+	"properties": {
+		"score": {
+			"type": "integer",
+			"description": "Score from 1 to 10"
 		},
-		"required": ["score", "description"],
-		"additionalProperties": false
-	}
+		"description": {
+			"type": "string",
+			"description": "Short explanation of the score"
+		}
+	},
+	"required": ["score", "description"],
+	"additionalProperties": false
 }`)
 
 // CheckResult is the structured semantic evaluation returned by the AI model.
@@ -104,7 +100,7 @@ func (p ImageResponseCheckParams) Validate() error {
 }
 
 // CheckResponse executes a semantic check for arbitrary request/response values.
-func CheckResponse(ctx context.Context, params ResponseCheckParams, out *CheckResult) error {
+func CheckResponse(params ResponseCheckParams, out *CheckResult) error {
 	if out == nil {
 		return errors.New("check result output is required")
 	}
@@ -113,6 +109,14 @@ func CheckResponse(ctx context.Context, params ResponseCheckParams, out *CheckRe
 	if err != nil {
 		return fmt.Errorf("load default connector: %w", err)
 	}
+
+	timeout, err := defaultTimeout()
+	if err != nil {
+		return fmt.Errorf("load default connector timeout: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	return executeResponseCheck(ctx, connector, params, out)
 }
@@ -152,7 +156,7 @@ func executeResponseCheck(ctx context.Context, c Connector, params ResponseCheck
 }
 
 // CheckImageResponse executes a semantic check for an image response.
-func CheckImageResponse(ctx context.Context, params ImageResponseCheckParams, out *CheckResult) error {
+func CheckImageResponse(params ImageResponseCheckParams, out *CheckResult) error {
 	if out == nil {
 		return errors.New("check result output is required")
 	}
@@ -161,6 +165,14 @@ func CheckImageResponse(ctx context.Context, params ImageResponseCheckParams, ou
 	if err != nil {
 		return fmt.Errorf("load default connector: %w", err)
 	}
+
+	timeout, err := defaultTimeout()
+	if err != nil {
+		return fmt.Errorf("load default connector timeout: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	return executeImageResponseCheck(ctx, connector, params, out)
 }

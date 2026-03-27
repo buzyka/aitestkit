@@ -9,14 +9,19 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/buzyka/aitestkit/openai"
 )
 
-const configFileName = ".aitestkit.json"
+const (
+	configFileName        = ".aitestkit.json"
+	defaultRequestTimeout = 5 * time.Minute
+)
 
 type fileConfig struct {
 	Provider string           `json:"provider"`
+	Timeout  string           `json:"timeout"`
 	OpenAI   openAIFileConfig `json:"openai"`
 }
 
@@ -31,6 +36,7 @@ type openAIFileConfig struct {
 var (
 	defaultConnectorOnce  sync.Once
 	defaultConnectorValue Connector
+	defaultTimeoutValue   time.Duration
 	defaultConnectorErr   error
 
 	getWorkingDir = os.Getwd
@@ -66,7 +72,7 @@ func defaultConnector() (Connector, error) {
 			return
 		}
 
-		defaultConnectorValue, defaultConnectorErr = loadConnectorFromWorkingDir(workingDir)
+		defaultConnectorValue, defaultTimeoutValue, defaultConnectorErr = loadRuntimeFromWorkingDir(workingDir)
 	})
 
 	if isNilConnector(defaultConnectorValue) {
@@ -76,28 +82,56 @@ func defaultConnector() (Connector, error) {
 	return defaultConnectorValue, defaultConnectorErr
 }
 
+func defaultTimeout() (time.Duration, error) {
+	defaultConnectorOnce.Do(func() {
+		workingDir, err := getWorkingDir()
+		if err != nil {
+			defaultConnectorErr = fmt.Errorf("get working directory: %w", err)
+			return
+		}
+
+		defaultConnectorValue, defaultTimeoutValue, defaultConnectorErr = loadRuntimeFromWorkingDir(workingDir)
+	})
+
+	if defaultConnectorErr != nil {
+		return 0, defaultConnectorErr
+	}
+
+	return defaultTimeoutValue, nil
+}
+
 func loadConnectorFromWorkingDir(startDir string) (Connector, error) {
+	connector, _, err := loadRuntimeFromWorkingDir(startDir)
+	return connector, err
+}
+
+func loadRuntimeFromWorkingDir(startDir string) (Connector, time.Duration, error) {
 	moduleRoot, err := findModuleRoot(startDir)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	cfg, err := loadFileConfig(filepath.Join(moduleRoot, configFileName))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	timeout, err := resolveTimeout(cfg.Timeout)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	switch strings.TrimSpace(cfg.Provider) {
 	case "openai":
 		connector, buildErr := buildOpenAIConnector(cfg.OpenAI)
 		if buildErr != nil {
-			return nil, fmt.Errorf("build openai connector: %w", buildErr)
+			return nil, 0, fmt.Errorf("build openai connector: %w", buildErr)
 		}
-		return connector, nil
+		return connector, timeout, nil
 	case "":
-		return nil, errors.New("config provider must not be empty")
+		return nil, 0, errors.New("config provider must not be empty")
 	default:
-		return nil, fmt.Errorf("unsupported provider %q", cfg.Provider)
+		return nil, 0, fmt.Errorf("unsupported provider %q", cfg.Provider)
 	}
 }
 
@@ -156,9 +190,28 @@ func resolveAPIKey(cfg openAIFileConfig) (string, error) {
 	}
 }
 
+func resolveTimeout(raw string) (time.Duration, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return defaultRequestTimeout, nil
+	}
+
+	timeout, err := time.ParseDuration(trimmed)
+	if err != nil {
+		return 0, fmt.Errorf("parse timeout: %w", err)
+	}
+
+	if timeout <= 0 {
+		return 0, errors.New("timeout must be greater than zero")
+	}
+
+	return timeout, nil
+}
+
 func resetDefaultConnectorStateForTests() {
 	defaultConnectorOnce = sync.Once{}
 	defaultConnectorValue = nil
+	defaultTimeoutValue = 0
 	defaultConnectorErr = nil
 }
 
