@@ -1,0 +1,29 @@
+version: "2"
+
+run:
+  tests: true
+  timeout: 3m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - misspell
+    - revive
+    - staticcheck
+    - unused
+
+formatters:
+  enable:
+    - gofmt
+
+linters-settings:
+  revive:
+    rules:
+      - name: package-comments
+      - name: var-naming
+      - name: exported
+        arguments:
+          - disableStutteringCheck
